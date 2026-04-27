@@ -44,17 +44,48 @@ def render_data_summary(result: LoadResult) -> None:
     cols = st.columns(4)
     cols[0].metric("總明細筆數", ch.fmt_int(len(df)))
     cols[1].metric("訂單張數", ch.fmt_int(df["order_id"].nunique()))
-    if not df.empty:
+    if not df.empty and df["order_date"].notna().any():
         od = df["order_date"]
         naive = od.dt.tz_localize(None) if od.dt.tz is not None else od
         cols[2].metric("日期範圍", f"{naive.min().date()} ~ {naive.max().date()}")
     else:
         cols[2].metric("日期範圍", "—")
     cols[3].metric("會員數 / 產品數", f"{df['member_id'].nunique()} / {df['sku'].nunique()}")
-    if result.warnings:
-        with st.expander("資料載入警告", expanded=False):
+
+    missing_critical = [
+        std for std in ("order_id", "order_date", "member_id", "sku")
+        if std not in result.column_mapping.values()
+    ]
+    if missing_critical:
+        st.error(
+            "⚠️ 偵測到關鍵欄位沒有對應上,儀表板會顯示空白或錯誤的數字。\n\n"
+            f"沒有對應到的欄位:`{'`, `'.join(missing_critical)}`\n\n"
+            "請展開下方「欄位對應檢查」,告訴我你 Excel 的欄位該對應到哪個標準欄位。"
+        )
+
+    with st.expander(
+        "🔍 欄位對應檢查(若儀表板數字異常請打開)",
+        expanded=bool(missing_critical),
+    ):
+        st.markdown("**Excel 中的所有欄位**(共 {} 欄):".format(len(result.original_columns)))
+        st.code(" | ".join(result.original_columns) or "(無)", language=None)
+
+        if result.column_mapping:
+            st.markdown("**已對應上的欄位**:")
+            mapping_df = pd.DataFrame(
+                [{"Excel 欄名": k, "→ 標準欄位": v} for k, v in result.column_mapping.items()]
+            )
+            st.dataframe(mapping_df, use_container_width=True, hide_index=True)
+        else:
+            st.warning("沒有任何欄位被自動對應上!")
+
+        if result.warnings:
+            st.markdown("**沒有對應上的標準欄位**:")
             for w in result.warnings:
-                st.warning(w)
+                st.markdown(f"- {w}")
+            st.info(
+                "💡 想加自訂對應?編輯 `data_loader.py` 的 `COLUMN_ALIASES`,或把 Excel 第一列的欄名改成上方標準欄名(例如把「訂購日期」改成「訂單日期」)。"
+            )
 
 
 def page_overview(df: pd.DataFrame, orders: pd.DataFrame, state: FilterState) -> None:

@@ -35,28 +35,85 @@ STANDARD_COLUMNS = [
 ]
 
 COLUMN_ALIASES: dict[str, list[str]] = {
-    "order_id": ["訂單編號", "訂單ID", "order_no", "order id", "order_id", "orderid"],
-    "order_date": ["訂單日期", "下單時間", "建立時間", "order_date", "created_at", "date"],
-    "order_status": ["訂單狀態", "狀態", "status", "order_status"],
-    "order_amount": ["訂單金額", "訂單總額", "總金額", "amount", "total"],
-    "member_id": ["會員ID", "會員編號", "客戶ID", "member_id", "customer_id", "user_id"],
-    "member_name": ["會員姓名", "姓名", "客戶姓名", "name", "member_name"],
-    "birth_year": ["出生年", "出生年份", "birth_year", "year_of_birth"],
-    "gender": ["性別", "gender", "sex"],
-    "region": ["地區", "縣市", "region", "city", "area"],
-    "email": ["Email", "email", "信箱", "電子郵件"],
-    "phone": ["電話", "手機", "phone", "mobile"],
-    "sku": ["產品SKU", "SKU", "sku", "商品編號"],
-    "product_name": ["產品名稱", "商品名稱", "product_name", "item_name"],
-    "product_category": ["產品分類", "商品分類", "category", "product_category"],
-    "unit_price": ["單價", "unit_price", "price"],
-    "quantity": ["數量", "quantity", "qty"],
-    "subtotal": ["小計", "subtotal", "line_total"],
+    "order_id": [
+        "訂單編號", "訂單號碼", "訂單號", "訂單序號", "訂單ID", "單號",
+        "order_no", "order_number", "order id", "order_id", "orderid", "name",
+    ],
+    "order_date": [
+        "訂單日期", "訂購日期", "訂單成立時間", "訂單建立時間", "成立時間",
+        "下單時間", "建立時間", "結帳時間", "訂購時間", "購買時間", "付款時間",
+        "order_date", "created_at", "create_at", "ordered_at", "purchase_date",
+        "date", "datetime",
+    ],
+    "order_status": [
+        "訂單狀態", "處理狀態", "狀態", "出貨狀態", "付款狀態",
+        "status", "order_status", "financial_status",
+    ],
+    "order_amount": [
+        "訂單金額", "訂單總額", "訂單總金額", "訂單合計", "應付金額",
+        "實付金額", "結帳金額", "合計", "總金額", "總額",
+        "amount", "total", "total_amount", "grand_total",
+    ],
+    "member_id": [
+        "會員ID", "會員編號", "客戶ID", "客戶編號", "買家ID", "買家編號",
+        "顧客ID", "顧客編號", "用戶ID",
+        "member_id", "customer_id", "user_id", "buyer_id",
+    ],
+    "member_name": [
+        "會員姓名", "客戶姓名", "買家姓名", "訂購人姓名", "訂購人",
+        "收件人姓名", "顧客姓名", "姓名",
+        "name", "member_name", "customer_name", "buyer_name", "billing_name",
+    ],
+    "birth_year": [
+        "出生年", "出生年份", "生日年份", "生日(年)", "會員生日年",
+        "birth_year", "year_of_birth", "birthday_year",
+    ],
+    "gender": ["性別", "會員性別", "顧客性別", "gender", "sex"],
+    "region": [
+        "地區", "縣市", "城市", "會員地區", "顧客地區", "收件地區", "收件縣市",
+        "region", "city", "area", "province",
+    ],
+    "email": ["Email", "email", "信箱", "電子郵件", "會員Email", "顧客電郵", "電子信箱"],
+    "phone": ["電話", "手機", "手機號碼", "聯絡電話", "會員電話", "phone", "mobile", "tel"],
+    "sku": [
+        "產品SKU", "SKU", "商品SKU", "商品編號", "商品貨號", "貨號", "產品編號",
+        "sku", "product_code", "item_sku",
+    ],
+    "product_name": [
+        "產品名稱", "商品名稱", "商品標題", "商品", "產品", "品名",
+        "product_name", "item_name", "product_title",
+    ],
+    "product_category": [
+        "產品分類", "商品分類", "商品類別", "類別", "分類",
+        "category", "product_category", "item_category",
+    ],
+    "unit_price": [
+        "單價", "售價", "商品單價", "商品售價", "原價",
+        "unit_price", "price", "item_price",
+    ],
+    "quantity": [
+        "數量", "商品數量", "訂購數量", "購買數量",
+        "quantity", "qty", "item_quantity",
+    ],
+    "subtotal": [
+        "小計", "商品小計", "訂單小計", "商品總計",
+        "subtotal", "line_total", "line_subtotal", "item_total",
+    ],
 }
 
-COMPLETED_STATUS = {"已完成", "完成", "completed", "complete", "paid", "已付款", "成立"}
-CANCELLED_STATUS = {"已取消", "取消", "cancelled", "canceled", "void"}
-REFUNDED_STATUS = {"退貨", "退款", "refunded", "returned"}
+COMPLETED_STATUS = {
+    "已完成", "完成", "訂單成立", "已成立", "成立", "已付款", "付款完成", "付款成功",
+    "處理中", "處理完畢", "已出貨", "出貨完成", "送達", "已送達", "交易完成",
+    "completed", "complete", "paid", "fulfilled", "delivered", "success",
+}
+CANCELLED_STATUS = {
+    "已取消", "取消", "訂單取消", "未付款", "付款失敗", "逾期取消",
+    "cancelled", "canceled", "void", "voided", "failed",
+}
+REFUNDED_STATUS = {
+    "退貨", "退款", "已退款", "已退貨", "部分退款", "rma",
+    "refunded", "returned", "refund",
+}
 
 AGE_BINS = [0, 18, 25, 35, 45, 55, 200]
 AGE_LABELS = ["18 以下", "18-24", "25-34", "35-44", "45-54", "55+"]
@@ -70,11 +127,15 @@ class LoadResult:
         df: 訂單明細(每列一個訂單行項目)
         orders: 訂單層級彙總(每列一張訂單)
         warnings: 載入過程的警告訊息(欄位缺失等)
+        original_columns: Excel 中讀到的原始欄位名稱
+        column_mapping: Excel 欄位 → 標準欄位 的對應結果
     """
 
     df: pd.DataFrame
     orders: pd.DataFrame
     warnings: list[str]
+    original_columns: list[str]
+    column_mapping: dict[str, str]
 
 
 def _normalize_header(name: str) -> str:
@@ -89,8 +150,13 @@ def _build_alias_lookup() -> dict[str, str]:
     return lookup
 
 
-def map_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
-    """將原始欄位名稱對應到標準名稱。"""
+def map_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str], dict[str, str]]:
+    """將原始欄位名稱對應到標準名稱。
+
+    Returns:
+        (mapped_df, warnings, mapping)
+        mapping 為 {Excel 原欄名: 標準欄名}
+    """
     lookup = _build_alias_lookup()
     rename: dict[str, str] = {}
     for col in df.columns:
@@ -101,9 +167,9 @@ def map_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     warnings: list[str] = []
     for col in STANDARD_COLUMNS:
         if col not in mapped.columns:
-            warnings.append(f"找不到欄位 {col},將以空值填入。")
+            warnings.append(f"找不到欄位 `{col}`,將以空值填入。")
             mapped[col] = pd.NA
-    return mapped[STANDARD_COLUMNS], warnings
+    return mapped[STANDARD_COLUMNS], warnings, rename
 
 
 def normalize_status(value: object) -> str:
@@ -233,10 +299,17 @@ def aggregate_orders(df: pd.DataFrame) -> pd.DataFrame:
 def load_excel(file, tz: str = DEFAULT_TZ) -> LoadResult:
     """讀取 Excel(支援檔案物件或路徑),回傳清理後資料。"""
     raw = pd.read_excel(file, engine="openpyxl")
-    mapped, warnings = map_columns(raw)
+    original_columns = [str(c) for c in raw.columns]
+    mapped, warnings, mapping = map_columns(raw)
     cleaned = clean(mapped, tz=tz)
     orders = aggregate_orders(cleaned)
-    return LoadResult(df=cleaned, orders=orders, warnings=warnings)
+    return LoadResult(
+        df=cleaned,
+        orders=orders,
+        warnings=warnings,
+        original_columns=original_columns,
+        column_mapping=mapping,
+    )
 
 
 def filter_status(df: pd.DataFrame, statuses: Iterable[str]) -> pd.DataFrame:
