@@ -7,6 +7,7 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
+from data_loader import aggregate_orders
 from metrics.member import segment_member
 
 
@@ -20,6 +21,7 @@ class FilterState:
     sleeping_days: int
     churn_days: int
     exclude_recent_days: int
+    exclude_gifts: bool
 
 
 def _date_bounds(df: pd.DataFrame) -> tuple[date, date]:
@@ -68,6 +70,14 @@ def render_sidebar(df: pd.DataFrame, orders: pd.DataFrame) -> FilterState:
         help="不選=全部。分群會在套用時間/狀態篩選後計算。",
     )
 
+    n_gifts = int(df["is_gift"].sum()) if "is_gift" in df.columns else 0
+    exclude_gifts = st.sidebar.toggle(
+        f"排除贈品列(目前 {n_gifts} 筆)",
+        value=True,
+        help="自動偵測產品分類或名稱含「贈品」「禮品」「贈送」「免費」的列。"
+        "排除後不會計入營收、排行、客單價、復購等所有指標。",
+    )
+
     with st.sidebar.expander("進階參數", expanded=False):
         sleeping_days = st.number_input("沉睡天數門檻", value=90, min_value=1, step=5)
         churn_days = st.number_input("流失天數門檻", value=180, min_value=1, step=5)
@@ -86,13 +96,18 @@ def render_sidebar(df: pd.DataFrame, orders: pd.DataFrame) -> FilterState:
         sleeping_days=int(sleeping_days),
         churn_days=int(churn_days),
         exclude_recent_days=int(exclude_recent_days),
+        exclude_gifts=exclude_gifts,
     )
 
 
 def apply_filters(
     df: pd.DataFrame, orders: pd.DataFrame, state: FilterState
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """套用篩選器,回傳 (明細, 訂單彙總)。"""
+    """套用篩選器,回傳 (明細, 訂單彙總)。
+
+    若 exclude_gifts=True,贈品列會從 df 拿掉,並重新彙總 orders,
+    讓每張訂單的金額/數量都反映「不含贈品」的結果。
+    """
     if df.empty:
         return df, orders
 
@@ -109,15 +124,26 @@ def apply_filters(
     if state.categories:
         df = df[df["product_category"].isin(state.categories)]
 
-    od2 = orders["order_date"]
-    naive2 = od2.dt.tz_localize(None) if od2.dt.tz is not None else od2
-    omask = (naive2 >= start) & (naive2 < end)
-    orders = orders.loc[omask].copy()
-    if state.statuses:
-        orders = orders[orders["order_status"].isin(state.statuses)]
-    if state.categories:
-        order_ids_in_cat = df["order_id"].unique()
-        orders = orders[orders["order_id"].isin(order_ids_in_cat)]
+    if state.exclude_gifts and "is_gift" in df.columns:
+        df = df[~df["is_gift"]].copy()
+        # 拿掉贈品後重算訂單彙總,讓 order_amount 不含贈品(若 order_amount
+        # 來自 Excel 原欄位,會被 line_total 取代;若沒有,就是 sum(subtotal))
+        if not df.empty:
+            df_for_agg = df.copy()
+            df_for_agg["order_amount"] = pd.NA  # 強制用明細加總而非沿用原 order_amount
+            orders = aggregate_orders(df_for_agg)
+        else:
+            orders = orders.iloc[0:0]
+    else:
+        od2 = orders["order_date"]
+        naive2 = od2.dt.tz_localize(None) if od2.dt.tz is not None else od2
+        omask = (naive2 >= start) & (naive2 < end)
+        orders = orders.loc[omask].copy()
+        if state.statuses:
+            orders = orders[orders["order_status"].isin(state.statuses)]
+        if state.categories:
+            order_ids_in_cat = df["order_id"].unique()
+            orders = orders[orders["order_id"].isin(order_ids_in_cat)]
 
     if state.member_segments and not orders.empty:
         seg = segment_member(

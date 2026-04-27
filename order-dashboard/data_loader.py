@@ -125,6 +125,9 @@ REFUNDED_STATUS = {
 AGE_BINS = [0, 18, 25, 35, 45, 55, 200]
 AGE_LABELS = ["18 以下", "18-24", "25-34", "35-44", "45-54", "55+"]
 
+# 用來辨識「贈品/免費品」列的關鍵字(出現在產品分類或產品名稱即視為贈品)
+GIFT_KEYWORDS = ("贈品", "禮品", "贈送", "免費", "free gift", "gift")
+
 
 @dataclass
 class LoadResult:
@@ -312,6 +315,15 @@ def clean(df: pd.DataFrame, tz: str = DEFAULT_TZ) -> pd.DataFrame:
     df.loc[missing_subtotal, "subtotal"] = df.loc[missing_subtotal, "unit_price"] * df.loc[missing_subtotal, "quantity"]
 
     df["order_status"] = df["order_status"].map(normalize_status)
+
+    # 標記贈品列(產品分類或產品名稱含贈品關鍵字)
+    cat = df["product_category"].fillna("").astype(str).str.lower()
+    name = df["product_name"].fillna("").astype(str).str.lower()
+    is_gift = pd.Series(False, index=df.index)
+    for kw in GIFT_KEYWORDS:
+        kw_lower = kw.lower()
+        is_gift = is_gift | cat.str.contains(kw_lower, regex=False, na=False) | name.str.contains(kw_lower, regex=False, na=False)
+    df["is_gift"] = is_gift
 
     # 會員 ID:若空,以 email + phone 組合補
     fallback_id = (df["email"].fillna("").astype(str) + "|" + df["phone"].fillna("").astype(str))
