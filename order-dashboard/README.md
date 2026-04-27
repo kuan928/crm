@@ -28,6 +28,18 @@ python sample_data/generate_sample.py
 
 ## 啟動
 
+### Mac 一鍵啟動(推薦)
+
+在 Finder 中**雙擊 `start.command`** 即可。
+
+- 第一次會自動建立虛擬環境 + 安裝套件(約 1-2 分鐘),後續每次啟動約 3 秒。
+- 啟動後瀏覽器會自動打開 `http://localhost:8501`。
+- 要關閉:回到開啟的終端機視窗按 `Control + C`,或直接關掉視窗。
+- 若雙擊出現「無法打開,因為來自未識別的開發者」:**右鍵 → 打開**(只需第一次)。
+- 需要 Mac 上有 Python 3.10+。若沒有,腳本會提示你前往 [python.org](https://www.python.org/downloads/) 下載。
+
+### 手動啟動(進階使用者)
+
 ```bash
 streamlit run app.py
 ```
