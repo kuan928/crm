@@ -36,11 +36,11 @@ STANDARD_COLUMNS = [
 
 COLUMN_ALIASES: dict[str, list[str]] = {
     "order_id": [
-        "訂單編號", "訂單號碼", "訂單號", "訂單序號", "訂單ID", "單號",
+        "訂單編號", "訂單單號", "訂單號碼", "訂單號", "訂單序號", "訂單ID", "單號",
         "order_no", "order_number", "order id", "order_id", "orderid", "name",
     ],
     "order_date": [
-        "訂單日期", "訂購日期", "訂單成立時間", "訂單建立時間", "成立時間",
+        "訂單日期", "訂貨日期", "訂購日期", "訂單成立時間", "訂單建立時間", "成立時間",
         "下單時間", "建立時間", "結帳時間", "訂購時間", "購買時間", "付款時間",
         "order_date", "created_at", "create_at", "ordered_at", "purchase_date",
         "date", "datetime",
@@ -55,8 +55,8 @@ COLUMN_ALIASES: dict[str, list[str]] = {
         "amount", "total", "total_amount", "grand_total",
     ],
     "member_id": [
-        "會員ID", "會員編號", "客戶ID", "客戶編號", "買家ID", "買家編號",
-        "顧客ID", "顧客編號", "用戶ID",
+        "會員ID", "會員編號", "網路會員編號", "客戶ID", "客戶編號",
+        "買家ID", "買家編號", "顧客ID", "顧客編號", "用戶ID",
         "member_id", "customer_id", "user_id", "buyer_id",
     ],
     "member_name": [
@@ -65,26 +65,33 @@ COLUMN_ALIASES: dict[str, list[str]] = {
         "name", "member_name", "customer_name", "buyer_name", "billing_name",
     ],
     "birth_year": [
-        "出生年", "出生年份", "生日年份", "生日(年)", "會員生日年",
-        "birth_year", "year_of_birth", "birthday_year",
+        "出生年", "出生年份", "生日年份", "生日(年)", "會員生日年", "生日",
+        "訂購人生日", "會員生日", "顧客生日",
+        "birth_year", "year_of_birth", "birthday_year", "birthday", "birth_date",
     ],
-    "gender": ["性別", "會員性別", "顧客性別", "gender", "sex"],
+    "gender": ["性別", "會員性別", "顧客性別", "訂購人性別", "gender", "sex"],
     "region": [
         "地區", "縣市", "城市", "會員地區", "顧客地區", "收件地區", "收件縣市",
-        "region", "city", "area", "province",
+        "地址", "收件地址", "收件人地址",
+        "region", "city", "area", "province", "address",
     ],
     "email": ["Email", "email", "信箱", "電子郵件", "會員Email", "顧客電郵", "電子信箱"],
-    "phone": ["電話", "手機", "手機號碼", "聯絡電話", "會員電話", "phone", "mobile", "tel"],
+    "phone": [
+        "電話", "手機", "手機號碼", "聯絡電話", "會員電話",
+        "訂購人電話", "訂購人行動電話", "行動電話",
+        "phone", "mobile", "tel",
+    ],
     "sku": [
         "產品SKU", "SKU", "商品SKU", "商品編號", "商品貨號", "貨號", "產品編號",
+        "最新品號", "品號", "貨品編號",
         "sku", "product_code", "item_sku",
     ],
     "product_name": [
-        "產品名稱", "商品名稱", "商品標題", "商品", "產品", "品名",
+        "產品名稱", "商品名稱", "商品標題", "商品", "產品", "品名", "最新品名",
         "product_name", "item_name", "product_title",
     ],
     "product_category": [
-        "產品分類", "商品分類", "商品類別", "類別", "分類",
+        "產品分類", "商品分類", "商品類別", "類別", "分類", "購物類型",
         "category", "product_category", "item_category",
     ],
     "unit_price": [
@@ -96,7 +103,7 @@ COLUMN_ALIASES: dict[str, list[str]] = {
         "quantity", "qty", "item_quantity",
     ],
     "subtotal": [
-        "小計", "商品小計", "訂單小計", "商品總計",
+        "小計", "商品小計", "訂單小計", "商品總計", "銷貨金額",
         "subtotal", "line_total", "line_subtotal", "item_total",
     ],
 }
@@ -153,23 +160,39 @@ def _build_alias_lookup() -> dict[str, str]:
 def map_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str], dict[str, str]]:
     """將原始欄位名稱對應到標準名稱。
 
+    若同一個標準欄位被多個 Excel 欄位匹配(例如「訂購人電話」與「訂購人行動電話」
+    都對到 phone),會逐列做 coalesce(取第一個非空值)合併。
+
     Returns:
-        (mapped_df, warnings, mapping)
-        mapping 為 {Excel 原欄名: 標準欄名}
+        (mapped_df, warnings, mapping) — mapping 是 {Excel 原欄名: 標準欄名}
     """
     lookup = _build_alias_lookup()
-    rename: dict[str, str] = {}
+    target_to_sources: dict[str, list[str]] = {}
     for col in df.columns:
         key = _normalize_header(col)
         if key in lookup:
-            rename[col] = lookup[key]
-    mapped = df.rename(columns=rename)
+            target = lookup[key]
+            target_to_sources.setdefault(target, []).append(col)
+
+    out = pd.DataFrame(index=df.index)
+    mapping: dict[str, str] = {}
+    for target, sources in target_to_sources.items():
+        merged = df[sources[0]].copy()
+        for src in sources[1:]:
+            empty = merged.isna() | (merged.astype(str).str.strip() == "")
+            merged = merged.where(~empty, df[src])
+        out[target] = merged
+        if len(sources) == 1:
+            mapping[sources[0]] = target
+        else:
+            mapping[" + ".join(sources)] = target
+
     warnings: list[str] = []
     for col in STANDARD_COLUMNS:
-        if col not in mapped.columns:
+        if col not in out.columns:
             warnings.append(f"找不到欄位 `{col}`,將以空值填入。")
-            mapped[col] = pd.NA
-    return mapped[STANDARD_COLUMNS], warnings, rename
+            out[col] = pd.NA
+    return out[STANDARD_COLUMNS], warnings, mapping
 
 
 def normalize_status(value: object) -> str:
@@ -199,6 +222,55 @@ def calc_age(birth_year: object, ref_date: datetime | None = None) -> float:
     return float(age)
 
 
+def extract_year(value: object) -> float:
+    """從多種格式抽出西元年:1986、"1986"、"1986/05/12"、"1986-05-12"、Timestamp。"""
+    if pd.isna(value):
+        return float("nan")
+    # 1) 純整數年(允許小數誤判)
+    try:
+        y = int(float(value))
+        if 1900 <= y <= 2200:
+            return float(y)
+    except (TypeError, ValueError):
+        pass
+    # 2) 嘗試解析為日期
+    try:
+        dt = pd.to_datetime(value, errors="coerce")
+        if pd.notna(dt):
+            return float(dt.year)
+    except (TypeError, ValueError):
+        pass
+    return float("nan")
+
+
+_TW_CITY_RE = None
+
+
+def extract_city(address: object) -> str:
+    """從台灣地址抽出縣市名(臺北市、新北市、桃園市、台中市…)。"""
+    global _TW_CITY_RE
+    if pd.isna(address):
+        return "未知"
+    if _TW_CITY_RE is None:
+        import re
+
+        cities = [
+            "台北市", "臺北市", "新北市", "桃園市", "台中市", "臺中市",
+            "台南市", "臺南市", "高雄市", "基隆市", "新竹市", "新竹縣",
+            "苗栗縣", "彰化縣", "南投縣", "雲林縣", "嘉義市", "嘉義縣",
+            "屏東縣", "宜蘭縣", "花蓮縣", "台東縣", "臺東縣",
+            "澎湖縣", "金門縣", "連江縣",
+        ]
+        _TW_CITY_RE = re.compile("|".join(cities))
+    s = str(address)
+    m = _TW_CITY_RE.search(s)
+    if m:
+        # 統一「臺」→「台」
+        return m.group(0).replace("臺", "台")
+    # fallback: 取前 3 字
+    return s.strip()[:3] or "未知"
+
+
 def age_bucket(age: float) -> str:
     if pd.isna(age):
         return "未知"
@@ -226,7 +298,14 @@ def clean(df: pd.DataFrame, tz: str = DEFAULT_TZ) -> pd.DataFrame:
     df["unit_price"] = _coerce_numeric(df["unit_price"])
     df["quantity"] = _coerce_numeric(df["quantity"])
     df["subtotal"] = _coerce_numeric(df["subtotal"])
-    df["birth_year"] = _coerce_numeric(df["birth_year"])
+    # 生日可能是純年份、也可能是完整日期字串,用 extract_year 統一處理
+    df["birth_year"] = df["birth_year"].apply(extract_year)
+
+    # region 若是完整地址(含「市」或「縣」),抽出縣市名
+    region_str = df["region"].astype(str)
+    looks_like_address = region_str.str.contains(r"[市縣].{2,}", regex=True, na=False)
+    if looks_like_address.any():
+        df.loc[looks_like_address, "region"] = df.loc[looks_like_address, "region"].apply(extract_city)
 
     # 若沒有 subtotal,用 unit_price * quantity 補
     missing_subtotal = df["subtotal"].isna()
