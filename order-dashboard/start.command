@@ -107,4 +107,6 @@ echo "      或直接關閉這個視窗(Streamlit 會跟著結束)"
 echo
 echo "---------------------------------------------"
 
-exec streamlit run app.py --browser.gatherUsageStats=false
+exec streamlit run app.py \
+    --server.address=localhost \
+    --browser.gatherUsageStats=false
